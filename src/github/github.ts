@@ -30,10 +30,9 @@ export class GithubClient {
     var done = false;
     do {
       try {
-        const runners = await octokit.rest.actions.listSelfHostedRunnersForRepo(
+        const runners = await octokit.rest.actions.listSelfHostedRunnersForOrg(
           {
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
+            org: github.context.repo.owner
           }
         );
         done = !Boolean(runners.data.total_count);
@@ -59,9 +58,8 @@ export class GithubClient {
     const octokit = github.getOctokit(this.config.githubToken);
     try {
       const response =
-        await octokit.rest.actions.createRegistrationTokenForRepo({
-          owner: github.context.repo.owner,
-          repo: github.context.repo.repo,
+        await octokit.rest.actions.createRegistrationTokenForOrg({
+          org: github.context.repo.owner,
         });
 
       return response.data;
@@ -77,9 +75,8 @@ export class GithubClient {
       if (runner) {
         const octokit = github.getOctokit(this.config.githubToken);
         const response =
-          await octokit.rest.actions.deleteSelfHostedRunnerFromRepo({
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
+          await octokit.rest.actions.deleteSelfHostedRunnerFromOrg({
+            org: github.context.repo.owner,
             runner_id: runner.id,
           });
         return response.status == 204;
