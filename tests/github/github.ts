@@ -13,7 +13,7 @@ describe('Github API tests', () => {
     });
 
     it('list runners with labels for repo', async () => {
-        const runners = await githubClient.getRunnerWithLabels(["self-hosted", "Linux"])
+        const runners = await githubClient.getRunnersWithLabels(["self-hosted", "Linux"])
         expect(runners).not.throw
     });
 
@@ -26,7 +26,7 @@ describe('Github API tests', () => {
     });
 
     it('list runners with labels for repo', async () => {
-        const runners = await githubClient.removeRunnerWithLabels(["foo", "bar"])
+        const runners = await githubClient.removeRunnersWithLabels(["foo", "bar"])
         expect(runners).is.true
     });
 

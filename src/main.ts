@@ -75,7 +75,7 @@ async function stop() {
     const instanceId = await ec2Client.getInstancesForTags();
     if (instanceId?.InstanceId)
       await ec2Client.terminateInstances(instanceId?.InstanceId);
-    const result = await ghClient.removeRunnerWithLabels([config.githubJobId]);
+    const result = await ghClient.removeRunnersWithLabels([config.githubJobId]);
     if(result)
       core.info("Finished instance cleanup");
     else

@@ -25,18 +25,15 @@ export class GithubClient {
     return obj["tag_name"].replace("v", "");
   }
 
-  async getRunnerWithLabels(labels: string[]) {
+  async getRunnersWithLabels(labels: string[]) {
     const octokit = github.getOctokit(this.config.githubToken);
     var done = false;
     do {
       try {
-        const runners = await octokit.rest.actions.listSelfHostedRunnersForOrg(
-          {
-            org: github.context.repo.owner
-          }
-        );
+        const runners = await octokit.rest.actions.listSelfHostedRunnersForOrg({
+          org: github.context.repo.owner,
+        });
         done = !Boolean(runners.data.total_count);
-
         const searchLabels = {
           labels: labels.map(function (label) {
             return { name: label };
@@ -44,23 +41,23 @@ export class GithubClient {
         };
 
         //const mockRunnerData = {"total_count":2,"runners":[{"id":319,"name":"ip-192-168-0-139","os":"Linux","status":"online","busy":true,"labels":[{"id":297,"name":"self-hosted","type":"read-only"},{"id":298,"name":"Linux","type":"read-only"},{"id":299,"name":"X64","type":"read-only"},{"id":314,"name":"dow0w","type":"custom"}]},{"id":320,"name":"ip-192-168-11-102","os":"Linux","status":"online","busy":true,"labels":[{"id":297,"name":"self-hosted","type":"read-only"},{"id":298,"name":"Linux","type":"read-only"},{"id":299,"name":"X64","type":"read-only"},{"id":315,"name":"2pdrq","type":"custom"}]}]}
-        const matches = _.filter(runners.data.runners, searchLabels);
-        return matches.length > 0 ? matches[0] : null;
+        return  _.filter(runners.data.runners, searchLabels);
       } catch (error) {
         core.error(`Failed to list github runners: ${error}`);
         throw error;
       }
     } while (done);
-    return null;
+    return [];
   }
 
   async getRunnerRegistrationToken() {
     const octokit = github.getOctokit(this.config.githubToken);
     try {
-      const response =
-        await octokit.rest.actions.createRegistrationTokenForOrg({
+      const response = await octokit.rest.actions.createRegistrationTokenForOrg(
+        {
           org: github.context.repo.owner,
-        });
+        }
+      );
 
       return response.data;
     } catch (error) {
@@ -69,75 +66,41 @@ export class GithubClient {
     }
   }
 
-  async removeRunnerWithLabels(labels: string[]) {
+  async removeRunnersWithLabels(labels: string[]) {
+    let deletedAll = true;
     try {
-      const runner = await this.getRunnerWithLabels(labels);
-      if (runner) {
+      const runners = await this.getRunnersWithLabels(labels);
+      for (const runner of runners) {
         const octokit = github.getOctokit(this.config.githubToken);
         const response =
           await octokit.rest.actions.deleteSelfHostedRunnerFromOrg({
             org: github.context.repo.owner,
             runner_id: runner.id,
           });
-        return response.status == 204;
+        deletedAll = deletedAll && response.status == 204;
       }
     } catch (error) {
       core.error(`Failed to delete runner: ${error}`);
     }
-    return true;
-  }
-
-  async waitForRunnerCreated(label) {
-    const timeoutMinutes = 5;
-    const retryIntervalSeconds = 10;
-    const quietPeriodSeconds = 30;
-    let waitSeconds = 0;
-
-    core.info(`Waiting ${quietPeriodSeconds}s before polling for runner`);
-    await new Promise((r) => setTimeout(r, quietPeriodSeconds * 1000));
-    core.info(`Polling for runner every ${retryIntervalSeconds}s`);
-
-    return new Promise((resolve, reject) => {
-      const interval = setInterval(async () => {
-        const runner = await this.getRunnerWithLabels(label);
-
-        if (waitSeconds > timeoutMinutes * 60) {
-          core.error("GitHub self-hosted runner creation error");
-          clearInterval(interval);
-          reject(
-            `A timeout of ${timeoutMinutes} minutes is exceeded. Please ensure your EC2 instance has access to the Internet.`
-          );
-        }
-
-        if (runner && runner.status === "online") {
-          core.info(
-            `GitHub self-hosted runner ${runner.name} is created and ready to use`
-          );
-          clearInterval(interval);
-          resolve("online");
-        } else {
-          waitSeconds += retryIntervalSeconds;
-          core.info("Waiting...");
-        }
-      }, retryIntervalSeconds * 1000);
-    });
+    return deletedAll;
   }
 
   // Borrowed from https://github.com/machulav/ec2-github-runner/blob/main/src/aws.js
   async pollForRunnerCreation(labels: string[]) {
+    // TODO we should continue when we get one confirm maybe - but keep this for now
     const timeoutMinutes = 5;
     const retryIntervalSeconds = 10;
     const quietPeriodSeconds = 30;
     let waitSeconds = 0;
 
-    core.info(`Waiting ${quietPeriodSeconds}s before polling for runner`);
+    core.info(`Waiting ${quietPeriodSeconds}s before polling for runners`);
     await new Promise((r) => setTimeout(r, quietPeriodSeconds * 1000));
-    core.info(`Polling for runner every ${retryIntervalSeconds}s`);
+    core.info(`Polling for runners every ${retryIntervalSeconds}s`);
+
+    const runnersStatus = new Map(labels.map((label) => [label, false]));
 
     return new Promise((resolve, reject) => {
       const interval = setInterval(async () => {
-        const runner = await this.getRunnerWithLabels(labels);
-
         if (waitSeconds > timeoutMinutes * 60) {
           core.error("GitHub self-hosted runner creation error");
           clearInterval(interval);
@@ -146,15 +109,26 @@ export class GithubClient {
           );
         }
 
-        if (runner && runner.status === "online") {
-          core.info(
-            `GitHub self-hosted runner ${runner.name} is created and ready to use`
-          );
+        let i = 0;
+        for (const runner of await this.getRunnersWithLabels(labels)) {
+          if (!runnersStatus.get(labels[i])) {
+            if (runner && runner.status === "online") {
+              core.info(
+                `GitHub self-hosted runner ${runner.name} with label ${labels[i]} is created and ready to use`
+              );
+              runnersStatus.set(labels[i], true);
+            }
+          }
+          i++;
+        }
+
+        if ([...runnersStatus.values()].every((status) => status === true)) {
+          core.info("All runners are online and ready to use");
           clearInterval(interval);
           resolve(true);
         } else {
           waitSeconds += retryIntervalSeconds;
-          core.info("Waiting...");
+          core.info("Waiting for runners...");
         }
       }, retryIntervalSeconds * 1000);
     });
