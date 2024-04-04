@@ -48,7 +48,7 @@ export class UserData {
       ...parallelCmds,
       "wait", // Wait for all background processes to finish
     ];
-
+    console.log("Sending: ", cmds.join("\n"));
     return Buffer.from(cmds.join("\n")).toString("base64");
   }
 }
