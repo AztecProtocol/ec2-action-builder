@@ -21,16 +21,11 @@ export class UserData {
 
     // Generate the parallel bash commands for each token
     const parallelCmds = tokens.map((token, index) => {
-      const runnerName = `${this.config.githubJobId}-$(hostname)-ec2-${index}`;
       return `
-        (
-          cp -r . ../${runnerName} && cd ../${runnerName}
-          ./config.sh --unattended --ephemeral --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token ${token.token} --labels ${this.config.githubActionRunnerLabel} --name ${runnerName}
-          ./run.sh
-        ) &
       `;
     });
 
+    const runnerNameBase = `${this.config.githubJobId}-$(hostname)-ec2`;
     const cmds = [
       "#!/bin/bash",
       `shutdown -P +${this.config.ec2InstanceTtl}`,
@@ -46,6 +41,9 @@ export class UserData {
       "tar xzf ./actions-runner-linux-${RUNNER_ARCH}-${GH_RUNNER_VERSION}.tar.gz",
       "export RUNNER_ALLOW_RUNASROOT=1",
       '[ -n "$(command -v yum)" ] && yum install libicu -y',
+      'for i in {0..49}; do',
+      '  ( cp -r . ../${runnerNameBase}-$i && cd ../${runnerNameBase}-$i; ./config.sh --unattended --ephemeral --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token ${token.token} --labels ${this.config.githubActionRunnerLabel} --name ${runnerName} ; ./run.sh ) &',
+      'done',
       ...parallelCmds,
       "wait", // Wait for all background processes to finish
     ];
