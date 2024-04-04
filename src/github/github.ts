@@ -97,8 +97,6 @@ export class GithubClient {
     await new Promise((r) => setTimeout(r, quietPeriodSeconds * 1000));
     core.info(`Polling for runners every ${retryIntervalSeconds}s`);
 
-    const runnersStatus = new Map(labels.map((label) => [label, false]));
-
     return new Promise((resolve, reject) => {
       const interval = setInterval(async () => {
         if (waitSeconds > timeoutMinutes * 60) {
@@ -109,27 +107,20 @@ export class GithubClient {
           );
         }
 
-        let i = 0;
         for (const runner of await this.getRunnersWithLabels(labels)) {
-          if (!runnersStatus.get(labels[i])) {
-            if (runner && runner.status === "online") {
-              core.info(
-                `GitHub self-hosted runner ${runner.name} with label ${labels[i]} is created and ready to use`
-              );
-              runnersStatus.set(labels[i], true);
-            }
+          if (runner.status === "online") {
+            core.info(
+              `GitHub self-hosted runner ${runner.name} with label ${labels} is created and ready to use.
+              Continuing assuming other runners will come online.`
+            );
+            core.info("All runners are online and ready to use");
+            clearInterval(interval);
+            resolve(true);
+            return;
           }
-          i++;
         }
-
-        if ([...runnersStatus.values()].every((status) => status === true)) {
-          core.info("All runners are online and ready to use");
-          clearInterval(interval);
-          resolve(true);
-        } else {
-          waitSeconds += retryIntervalSeconds;
-          core.info("Waiting for runners...");
-        }
+        waitSeconds += retryIntervalSeconds;
+        core.info("Waiting for runners...");
       }, retryIntervalSeconds * 1000);
     });
   }
