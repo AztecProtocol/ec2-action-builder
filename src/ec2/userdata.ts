@@ -18,13 +18,6 @@ export class UserData {
     );
     if (!this.config.githubActionRunnerLabel)
       throw Error("failed to object job ID for label");
-
-    // Generate the parallel bash commands for each token
-    const parallelCmds = tokens.map((token, index) => {
-      return `
-      `;
-    });
-
     const runnerNameBase = `${this.config.githubJobId}-$(hostname)-ec2`;
     const cmds = [
       "#!/bin/bash",
@@ -45,7 +38,6 @@ export class UserData {
       'for i in {0..49}; do',
       `  ( cp -r . ../${runnerNameBase}-$i && cd ../${runnerNameBase}-$i; ./config.sh --unattended --ephemeral --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token \${TOKENS[i]} --labels ${this.config.githubActionRunnerLabel} --name ${runnerNameBase}-i ; ./run.sh ) &`,
       'done',
-      ...parallelCmds,
       "wait", // Wait for all background processes to finish
     ];
     console.log("Sending: ", cmds.join("\n"));

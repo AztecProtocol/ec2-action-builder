@@ -271,13 +271,23 @@ export class Ec2Instance {
       MaxCount: 1,
       MinCount: 1,
       SecurityGroupIds: [this.config.ec2SecurityGroupId],
-      SubnetId: this.config.ec2SubnetId,
+      // SubnetId: this.config.ec2SubnetId, // <aztec>parity with build-system</aztec>
       TagSpecifications: [
         {
           ResourceType: "instance",
           Tags: this.tags,
         },
       ],
+      // <aztec>parity with build-system
+      BlockDeviceMappings: [
+        {
+          DeviceName: "/dev/sda1",
+          Ebs: {
+            VolumeSize: 128, // TODO try and scale back
+          },
+        },
+      ],
+      // parity with build-system</aztec>
       UserData: await userData.getUserData(),
     };
 
