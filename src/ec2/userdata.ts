@@ -12,9 +12,23 @@ export class UserData {
   async getUserData(): Promise<string> {
     const ghClient = new GithubClient(this.config);
     const githubActionRunnerVersion = await ghClient.getRunnerVersion();
-    const runnerRegistrationToken = await ghClient.getRunnerRegistrationToken();
+    // Retrieve 50 runner registration tokens in parallel
+    const tokens = await Promise.all(
+      Array.from({ length: 50 }, () => ghClient.getRunnerRegistrationToken())
+    );
     if (!this.config.githubActionRunnerLabel)
       throw Error("failed to object job ID for label");
+
+    // Generate the parallel bash commands for each token
+    const parallelCmds = tokens.map((token, index) => {
+      const runnerName = `${this.config.githubJobId}-$(hostname)-ec2-${index}`;
+      return `
+        (
+          ./config.sh --unattended --ephemeral --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token ${token.token} --labels ${this.config.githubActionRunnerLabel} --name ${runnerName}
+          ./run.sh
+        ) &
+      `;
+    });
 
     const cmds = [
       "#!/bin/bash",
@@ -30,10 +44,9 @@ export class UserData {
       "curl -O -L https://github.com/actions/runner/releases/download/v${GH_RUNNER_VERSION}/actions-runner-linux-${RUNNER_ARCH}-${GH_RUNNER_VERSION}.tar.gz",
       "tar xzf ./actions-runner-linux-${RUNNER_ARCH}-${GH_RUNNER_VERSION}.tar.gz",
       "export RUNNER_ALLOW_RUNASROOT=1",
-      `RUNNER_NAME=${this.config.githubJobId}-$(hostname)-ec2`,
-      "[ -n \"$(command -v yum)\" ] && yum install libicu -y",
-      `./config.sh --unattended  --ephemeral --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token ${runnerRegistrationToken.token} --labels ${this.config.githubActionRunnerLabel} --name $RUNNER_NAME`,
-      "./run.sh",
+      '[ -n "$(command -v yum)" ] && yum install libicu -y',
+      ...parallelCmds,
+      "wait", // Wait for all background processes to finish
     ];
 
     return Buffer.from(cmds.join("\n")).toString("base64");
