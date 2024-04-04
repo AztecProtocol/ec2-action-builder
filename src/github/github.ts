@@ -30,8 +30,9 @@ export class GithubClient {
     var done = false;
     do {
       try {
-        const runners = await octokit.rest.actions.listSelfHostedRunnersForOrg({
-          org: github.context.repo.owner,
+        const runners = await octokit.rest.actions.listSelfHostedRunnersForRepo({
+          owner: github.context.repo.owner,
+          repo: github.context.repo.repo
         });
         done = !Boolean(runners.data.total_count);
         const searchLabels = {
@@ -53,9 +54,10 @@ export class GithubClient {
   async getRunnerRegistrationToken() {
     const octokit = github.getOctokit(this.config.githubToken);
     try {
-      const response = await octokit.rest.actions.createRegistrationTokenForOrg(
+      const response = await octokit.rest.actions.createRegistrationTokenForRepo(
         {
-          org: github.context.repo.owner,
+          owner: github.context.repo.owner,
+          repo: github.context.repo.repo
         }
       );
 
