@@ -24,6 +24,7 @@ export class UserData {
       const runnerName = `${this.config.githubJobId}-$(hostname)-ec2-${index}`;
       return `
         (
+          cp -r . ../${runnerName} && cd ../${runnerName}
           ./config.sh --unattended --ephemeral --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token ${token.token} --labels ${this.config.githubActionRunnerLabel} --name ${runnerName}
           ./run.sh
         ) &
