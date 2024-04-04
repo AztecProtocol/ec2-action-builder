@@ -41,8 +41,9 @@ export class UserData {
       "tar xzf ./actions-runner-linux-${RUNNER_ARCH}-${GH_RUNNER_VERSION}.tar.gz",
       "export RUNNER_ALLOW_RUNASROOT=1",
       '[ -n "$(command -v yum)" ] && yum install libicu -y',
+      `TOKENS=(${tokens.map(t => t.token).join(' ')})`,
       'for i in {0..49}; do',
-      '  ( cp -r . ../${runnerNameBase}-$i && cd ../${runnerNameBase}-$i; ./config.sh --unattended --ephemeral --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token ${token.token} --labels ${this.config.githubActionRunnerLabel} --name ${runnerName} ; ./run.sh ) &',
+      `  ( cp -r . ../${runnerNameBase}-$i && cd ../${runnerNameBase}-$i; ./config.sh --unattended --ephemeral --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token \${TOKENS[i]} --labels ${this.config.githubActionRunnerLabel} --name ${runnerNameBase}-i ; ./run.sh ) &`,
       'done',
       ...parallelCmds,
       "wait", // Wait for all background processes to finish
