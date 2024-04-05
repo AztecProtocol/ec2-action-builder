@@ -85,7 +85,7 @@ export class GithubClient {
 
   async removeRunnersWithLabels(labels: string[]) {
     let deletedAll = true;
-    console.log(JSON.stringify(await this.getAllRunners(), null, 2));
+    console.log(JSON.stringify((await this.getAllRunners()).map(r => r.id), null, 2));
     try {
       const runners = await this.getRunnersWithLabels(labels);
       console.log(
