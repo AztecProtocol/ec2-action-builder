@@ -40,6 +40,7 @@ export class GithubClient {
       let totalCount = response.data.total_count;
 
       while (allRunners.length < totalCount) {
+        page++;
         response = await octokit.rest.actions.listSelfHostedRunnersForRepo({
           owner: github.context.repo.owner,
           repo: github.context.repo.repo,
@@ -48,7 +49,6 @@ export class GithubClient {
         });
         totalCount = response.data.total_count;
         allRunners = allRunners.concat(response.data.runners);
-        page++;
       }
 
       return allRunners;
@@ -85,7 +85,6 @@ export class GithubClient {
 
   async removeRunnersWithLabels(labels: string[]) {
     let deletedAll = true;
-    console.log(JSON.stringify((await this.getAllRunners()).map(r => r.name), null, 2));
     try {
       const runners = await this.getRunnersWithLabels(labels);
       console.log(
