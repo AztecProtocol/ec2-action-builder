@@ -85,12 +85,12 @@ export class GithubClient {
 
   async removeRunnersWithLabels(labels: string[]) {
     let deletedAll = true;
-    console.log(JSON.stringify((await this.getAllRunners()).map(r => r.id), null, 2));
+    console.log(JSON.stringify((await this.getAllRunners()).map(r => r.name), null, 2));
     try {
       const runners = await this.getRunnersWithLabels(labels);
       console.log(
         "Found existing runners:",
-        runners.map((r) => r.id)
+        runners.map((r) => r.name)
       );
       const octokit = github.getOctokit(this.config.githubToken);
       for (const runner of runners) {
