@@ -34,11 +34,17 @@ async function start() {
 
   const instances = await ec2Client.getInstancesForTags();
   if (instances.filter(i => i.State?.Name === "running").length > 0) {
-    core.info("got instances: " + JSON.stringify(instances, null, 2));
     core.info(
       `Runner already running. Continuing as we can target it with jobs.`
     );
     return;
+  }
+  core.info("Clearing previously installed runners to reuse their names");
+  const result = await ghClient.removeRunnersWithLabels([config.githubJobId]);
+  if (result) {
+    core.info("Finished runner cleanup");
+  } else {
+    throw Error("Failed to cleanup runners. Continuing, but failure expected!");
   }
   var instanceId = "";
   for (const ec2Strategy of ec2SpotStrategies) {
