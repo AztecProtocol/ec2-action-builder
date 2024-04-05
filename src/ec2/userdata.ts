@@ -39,7 +39,7 @@ export class UserData {
       '[ -n "$(command -v yum)" ] && yum install libicu -y',
       `TOKENS=(${tokens.map((t) => t.token).join(" ")})`,
       `for i in {0..${this.config.githubActionRunnerConcurrency - 1}}; do`,
-      `  ( cp -r . ../${runnerNameBase}-$i && cd ../${runnerNameBase}-$i; ./config.sh --unattended --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token \${TOKENS[i]} --labels ${this.config.githubActionRunnerLabel} --name ${runnerNameBase}-$i ; ./run.sh ) &`,
+      `  ( mkdir -p ../${runnerNameBase}-$i && ls -s $(pwd)/* ../${runnerNameBase}-$i && cd ../${runnerNameBase}-$i; ./config.sh --unattended --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token \${TOKENS[i]} --labels ${this.config.githubActionRunnerLabel} --name ${runnerNameBase}-$i ; ./run.sh ) &`,
       "done",
       "wait", // Wait for all background processes to finish
     ];
