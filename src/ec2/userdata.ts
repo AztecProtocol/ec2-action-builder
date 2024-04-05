@@ -38,12 +38,13 @@ export class UserData {
       "export RUNNER_ALLOW_RUNASROOT=1",
       '[ -n "$(command -v yum)" ] && yum install libicu -y',
       `TOKENS=(${tokens.map((t) => t.token).join(" ")})`,
+      `echo $TOKENS > /run/github-runner-tokens`, // for debugging failed attempts
       `for i in {0..${this.config.githubActionRunnerConcurrency - 1}}; do`,
       `  ( mkdir -p ../${runnerNameBase}-$i && ln -s $(pwd)/* ../${runnerNameBase}-$i && cd ../${runnerNameBase}-$i; ./config.sh --unattended --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token \${TOKENS[i]} --labels ${this.config.githubActionRunnerLabel} --name ${runnerNameBase}-$i ; ./run.sh ) &`,
       "done",
       "wait", // Wait for all background processes to finish
     ];
-    console.log("Sending: ", cmds.filter(x => !x.startsWith("TOKENS")).join("\n"));
+    console.log("Sending: ", cmds.filter(x => !x.includes("TOKENS")).join("\n"));
     return Buffer.from(cmds.join("\n")).toString("base64");
   }
 }
