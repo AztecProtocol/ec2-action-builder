@@ -89,7 +89,6 @@ export class GithubClient {
 
   // Borrowed from https://github.com/machulav/ec2-github-runner/blob/main/src/aws.js
   async pollForRunnerCreation(labels: string[]) {
-    // TODO we should continue when we get one confirm maybe - but keep this for now
     const timeoutMinutes = 5;
     const retryIntervalSeconds = 10;
     const quietPeriodSeconds = 30;

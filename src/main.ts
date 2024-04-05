@@ -33,12 +33,6 @@ async function start() {
     }
   }
 
-  const existingInstanceId = await ec2Client.getInstancesForTags();
-  if (existingInstanceId?.InstanceId) {
-    core.error(`Spot for ${config.githubJobId} already exists, reusing!`);
-    return;
-  }
-
   var instanceId = "";
   for (const ec2Strategy of ec2SpotStrategies) {
     core.info(`Starting instance with ${ec2Strategy} strategy`);
