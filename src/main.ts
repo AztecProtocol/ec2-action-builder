@@ -32,6 +32,13 @@ async function start() {
     }
   }
 
+  const instances = await ec2Client.getInstancesForTags();
+  if (instances.length > 0) {
+    core.info(
+      `Runner already running. Continuing as we can target it with jobs.`
+    );
+    return;
+  }
   var instanceId = "";
   for (const ec2Strategy of ec2SpotStrategies) {
     core.info(`Starting instance with ${ec2Strategy} strategy`);
@@ -84,7 +91,6 @@ async function stop() {
 }
 
 (async function () {
-  stop();
   try {
     start();
   } catch (error) {
