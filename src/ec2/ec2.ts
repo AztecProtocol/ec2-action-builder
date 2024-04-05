@@ -364,7 +364,7 @@ export class Ec2Instance {
     }
   }
 
-  async getInstancesForTags() {
+  async getInstancesForTags(): Promise<AWS.EC2.Instance[]> {
     const client = await this.getEc2Client();
     const filters: FilterInterface[] = [
       {
@@ -378,10 +378,11 @@ export class Ec2Instance {
         MaxResults: 99,
       };
 
-      const reservation = (
-        await client.describeInstances(params).promise()
-      ).Reservations?.at(0);
-      return reservation?.Instances?.at(0);
+      let instances: AWS.EC2.Instance[] = [];
+      for (const reservation of (await client.describeInstances(params).promise()).Reservations || []) {
+        instances = instances.concat(reservation.Instances || []);
+      }
+      return instances;
     } catch (error) {
       core.error(`Failed to lookup status for instance for tags ${JSON.stringify(filters, null, 2)}`);
       throw error;
@@ -402,14 +403,17 @@ export class Ec2Instance {
     }
   }
 
-  async terminateInstances(instanceId: string) {
+  async terminateInstances(instanceIds: string[]) {
+    if (instanceIds.length === 0) {
+      return;
+    }
     const client = await this.getEc2Client();
     try {
-      await client.terminateInstances({ InstanceIds: [instanceId] }).promise();
-      core.info(`AWS EC2 instance ${instanceId} is terminated`);
+      await client.terminateInstances({ InstanceIds: instanceIds }).promise();
+      core.info(`AWS EC2 instances ${instanceIds.join(', ')} are terminated`);
       return;
     } catch (error) {
-      core.error(`Failed terminate instance ${instanceId}`);
+      core.info(`Failed to terminate instances ${instanceIds.join(", ")}`);
       throw error;
     }
   }

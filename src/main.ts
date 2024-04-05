@@ -14,7 +14,6 @@ async function start() {
   const ec2Client = new Ec2Instance(config);
   const ghClient = new GithubClient(config);
 
-
   var ec2SpotStrategies: string[];
   switch (config.ec2SpotInstanceStrategy) {
     case "maxperformance": {
@@ -72,9 +71,8 @@ async function stop() {
     const config = new ActionConfig();
     const ec2Client = new Ec2Instance(config);
     const ghClient = new GithubClient(config);
-    const instanceId = await ec2Client.getInstancesForTags();
-    if (instanceId?.InstanceId)
-      await ec2Client.terminateInstances(instanceId?.InstanceId);
+    const instances = await ec2Client.getInstancesForTags();
+    await ec2Client.terminateInstances(instances.map(i => i.InstanceId!));
     const result = await ghClient.removeRunnersWithLabels([config.githubJobId]);
     if(result)
       core.info("Finished instance cleanup");

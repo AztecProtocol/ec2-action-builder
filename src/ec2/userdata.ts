@@ -12,9 +12,9 @@ export class UserData {
   async getUserData(): Promise<string> {
     const ghClient = new GithubClient(this.config);
     const githubActionRunnerVersion = await ghClient.getRunnerVersion();
-    // Retrieve 50 runner registration tokens in parallel
+    // Retrieve runner registration tokens in parallel
     const tokens = await Promise.all(
-      Array.from({ length: 50 }, () => ghClient.getRunnerRegistrationToken())
+      Array.from({ length: this.config.githubActionRunnerConcurrency }, () => ghClient.getRunnerRegistrationToken())
     );
     if (!this.config.githubActionRunnerLabel)
       throw Error("failed to object job ID for label");
@@ -35,7 +35,7 @@ export class UserData {
       "export RUNNER_ALLOW_RUNASROOT=1",
       '[ -n "$(command -v yum)" ] && yum install libicu -y',
       `TOKENS=(${tokens.map(t => t.token).join(' ')})`,
-      'for i in {0..49}; do',
+      `for i in {0..${this.config.githubActionRunnerConcurrency - 1}}; do`,
       `  ( cp -r . ../${runnerNameBase}-$i && cd ../${runnerNameBase}-$i; ./config.sh --unattended --ephemeral --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token \${TOKENS[i]} --labels ${this.config.githubActionRunnerLabel} --name ${runnerNameBase}-$i ; ./run.sh ) &`,
       'done',
       "wait", // Wait for all background processes to finish
