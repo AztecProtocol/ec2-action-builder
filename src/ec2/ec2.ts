@@ -366,13 +366,12 @@ export class Ec2Instance {
 
   async getInstancesForTags() {
     const client = await this.getEc2Client();
-    const filters: FilterInterface[] = [];
-    for (const tag of this.tags) {
-      filters.push({
-        Name: tag.Key,
-        Values: [tag.Value],
-      });
-    }
+    const filters: FilterInterface[] = [
+      {
+        Name: "tag:Name",
+        Values: [`${this.config.githubRepo}-${this.config.githubJobId}`],
+      },
+    ];
     try {
       var params = {
         Filters: filters,
@@ -384,7 +383,7 @@ export class Ec2Instance {
       ).Reservations?.at(0);
       return reservation?.Instances?.at(0);
     } catch (error) {
-      core.error(`Failed to lookup status for instance for tags ${filters}`);
+      core.error(`Failed to lookup status for instance for tags ${JSON.stringify(filters, null, 2)}`);
       throw error;
     }
   }
