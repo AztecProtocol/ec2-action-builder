@@ -20,6 +20,9 @@ inputs:
   github_token:
     description: 'GitHub token'
     required: true
+  runner_label:
+    description: 'Key for when to recreate spot, use as runs-on'
+    required: true
   github_action_runner_version:
     description: 'GitHub action runner version'
     required: false
