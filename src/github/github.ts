@@ -57,6 +57,10 @@ export class GithubClient {
       };
 
       //const mockRunnerData = {"total_count":2,"runners":[{"id":319,"name":"ip-192-168-0-139","os":"Linux","status":"online","busy":true,"labels":[{"id":297,"name":"self-hosted","type":"read-only"},{"id":298,"name":"Linux","type":"read-only"},{"id":299,"name":"X64","type":"read-only"},{"id":314,"name":"dow0w","type":"custom"}]},{"id":320,"name":"ip-192-168-11-102","os":"Linux","status":"online","busy":true,"labels":[{"id":297,"name":"self-hosted","type":"read-only"},{"id":298,"name":"Linux","type":"read-only"},{"id":299,"name":"X64","type":"read-only"},{"id":315,"name":"2pdrq","type":"custom"}]}]}
+      core.info("1");
+      core.info(JSON.stringify(response, null, 2));
+      core.info("2");
+      core.debug(JSON.stringify(response, null, 2));
       return _.filter(allRunners, searchLabels);
     } catch (error) {
       core.error(`Failed to list github runners: ${error}`);
