@@ -75,8 +75,9 @@ export class GithubClient {
       for (const runner of runners) {
         const octokit = github.getOctokit(this.config.githubToken);
         const response =
-          await octokit.rest.actions.deleteSelfHostedRunnerFromOrg({
-            org: github.context.repo.owner,
+          await octokit.rest.actions.deleteSelfHostedRunnerFromRepo({
+            owner: github.context.repo.owner,
+            repo: github.context.repo.repo,
             runner_id: runner.id,
           });
         deletedAll = deletedAll && response.status == 204;
