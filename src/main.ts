@@ -13,8 +13,7 @@ async function start() {
   } else if (config.subaction === "restart") {
     await stop();
     // then we make a fresh instance
-  } 
-  if (config.subaction !== "start") {
+  } else if (config.subaction !== "start") {
     throw new Error("Unexpected subaction: " + config.subaction);
   }
   // assume subaction is 'start'
