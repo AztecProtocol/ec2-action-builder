@@ -86,6 +86,7 @@ async function stop() {
 }
 
 (async function () {
+  stop();
   try {
     start();
   } catch (error) {
