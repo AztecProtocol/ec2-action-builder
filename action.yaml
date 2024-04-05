@@ -27,6 +27,10 @@ inputs:
     description: 'How many runners to create'
     type: number
     required: true
+  subaction:
+    description: 'One of: start (default), stop, restart'
+    required: false
+    default: 'start'
   github_action_runner_version:
     description: 'GitHub action runner version'
     required: false

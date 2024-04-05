@@ -15,6 +15,7 @@ export interface ConfigInterface {
   githubActionRunnerVersion: string;
   githubActionRunnerConcurrency: number;
   githubActionRunnerLabel: string;
+  subaction: string;
 
   ec2InstanceType: string;
   ec2AmiId: string;
@@ -39,6 +40,8 @@ export class ActionConfig implements ConfigInterface {
   githubRepo: string;
   githubActionRunnerVersion: string;
   githubActionRunnerLabel: string;
+  githubActionRunnerConcurrency: number;
+  subaction: string;
 
   ec2InstanceType: string;
   ec2AmiId: string;
@@ -66,6 +69,7 @@ export class ActionConfig implements ConfigInterface {
       "github_action_runner_version"
     );
     this.githubActionRunnerLabel = this.githubJobId;
+    this.subaction = core.getInput("subaction");
     this.githubActionRunnerConcurrency = +core.getInput("runner_concurrency");
 
     // Ec2 params
@@ -80,5 +84,4 @@ export class ActionConfig implements ConfigInterface {
       .getInput("ec2_spot_instance_strategy")
       .toLowerCase();
   }
-    githubActionRunnerConcurrency: number;
 }

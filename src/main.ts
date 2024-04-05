@@ -3,14 +3,21 @@ import { Ec2Instance } from "./ec2/ec2";
 import * as core from "@actions/core";
 import { GithubClient } from "./github/github";
 import { assertIsError } from "./utils/utils";
-
-function setOutput(label, ec2InstanceId) {
-  core.setOutput("label", label);
-  core.setOutput("ec2-instance-id", ec2InstanceId);
-}
+import { assert } from "console";
 
 async function start() {
   const config = new ActionConfig();
+  if (config.subaction === "stop") {
+    await stop();
+    return;
+  } else if (config.subaction === "restart") {
+    await stop();
+    // then we make a fresh instance
+  } 
+  if (config.subaction !== "start") {
+    throw new Error("Unexpected subaction: " + config.subaction);
+  }
+  // assume subaction is 'start'
   const ec2Client = new Ec2Instance(config);
   const ghClient = new GithubClient(config);
 
@@ -38,13 +45,6 @@ async function start() {
       `Runner already running. Continuing as we can target it with jobs.`
     );
     return;
-  }
-  core.info("Clearing previously installed runners to reuse their names");
-  const result = await ghClient.removeRunnersWithLabels([config.githubJobId]);
-  if (result) {
-    core.info("Finished runner cleanup");
-  } else {
-    throw Error("Failed to cleanup runners. Continuing, but failure expected!");
   }
   var instanceId = "";
   for (const ec2Strategy of ec2SpotStrategies) {
@@ -87,11 +87,13 @@ async function stop() {
     const ghClient = new GithubClient(config);
     const instances = await ec2Client.getInstancesForTags();
     await ec2Client.terminateInstances(instances.map(i => i.InstanceId!));
+    core.info("Clearing previously installed runners");
     const result = await ghClient.removeRunnersWithLabels([config.githubJobId]);
-    if(result)
-      core.info("Finished instance cleanup");
-    else
-      throw Error("Failed to cleanup instance")
+    if (result) {
+      core.info("Finished runner cleanup");
+    } else {
+      throw Error("Failed to cleanup runners. Continuing, but failure expected!");
+    }
   } catch(error){
     core.info(error)
   }
