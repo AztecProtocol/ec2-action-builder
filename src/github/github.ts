@@ -27,41 +27,51 @@ export class GithubClient {
 
   async getRunnersWithLabels(labels: string[]) {
     const octokit = github.getOctokit(this.config.githubToken);
-    var done = false;
-    do {
-      try {
-        const runners = await octokit.rest.actions.listSelfHostedRunnersForRepo({
+    try {
+      let page = 1;
+      const per_page = 10000; // Ask for all at once, but take what github gives us
+      let response = await octokit.rest.actions.listSelfHostedRunnersForRepo({
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        per_page,
+        page,
+      });
+      let allRunners = response.data.runners;
+      const totalCount = response.data.total_count;
+
+      while (allRunners.length < totalCount) {
+        response = await octokit.rest.actions.listSelfHostedRunnersForRepo({
           owner: github.context.repo.owner,
-          repo: github.context.repo.repo
+          repo: github.context.repo.repo,
+          per_page,
+          page,
         });
-
-        core.info(JSON.stringify(runners, null, 2));
-        done = !Boolean(runners.data.total_count);
-        const searchLabels = {
-          labels: labels.map(function (label) {
-            return { name: label };
-          }),
-        };
-
-        //const mockRunnerData = {"total_count":2,"runners":[{"id":319,"name":"ip-192-168-0-139","os":"Linux","status":"online","busy":true,"labels":[{"id":297,"name":"self-hosted","type":"read-only"},{"id":298,"name":"Linux","type":"read-only"},{"id":299,"name":"X64","type":"read-only"},{"id":314,"name":"dow0w","type":"custom"}]},{"id":320,"name":"ip-192-168-11-102","os":"Linux","status":"online","busy":true,"labels":[{"id":297,"name":"self-hosted","type":"read-only"},{"id":298,"name":"Linux","type":"read-only"},{"id":299,"name":"X64","type":"read-only"},{"id":315,"name":"2pdrq","type":"custom"}]}]}
-        return  _.filter(runners.data.runners, searchLabels);
-      } catch (error) {
-        core.error(`Failed to list github runners: ${error}`);
-        throw error;
+        allRunners = allRunners.concat(response.data.runners);
+        page++;
       }
-    } while (done);
-    return [];
+
+      const searchLabels = {
+        labels: labels.map(function (label) {
+          return { name: label };
+        }),
+      };
+
+      //const mockRunnerData = {"total_count":2,"runners":[{"id":319,"name":"ip-192-168-0-139","os":"Linux","status":"online","busy":true,"labels":[{"id":297,"name":"self-hosted","type":"read-only"},{"id":298,"name":"Linux","type":"read-only"},{"id":299,"name":"X64","type":"read-only"},{"id":314,"name":"dow0w","type":"custom"}]},{"id":320,"name":"ip-192-168-11-102","os":"Linux","status":"online","busy":true,"labels":[{"id":297,"name":"self-hosted","type":"read-only"},{"id":298,"name":"Linux","type":"read-only"},{"id":299,"name":"X64","type":"read-only"},{"id":315,"name":"2pdrq","type":"custom"}]}]}
+      return _.filter(allRunners, searchLabels);
+    } catch (error) {
+      core.error(`Failed to list github runners: ${error}`);
+      throw error;
+    }
   }
 
   async getRunnerRegistrationToken() {
     const octokit = github.getOctokit(this.config.githubToken);
     try {
-      const response = await octokit.rest.actions.createRegistrationTokenForRepo(
-        {
+      const response =
+        await octokit.rest.actions.createRegistrationTokenForRepo({
           owner: github.context.repo.owner,
-          repo: github.context.repo.repo
-        }
-      );
+          repo: github.context.repo.repo,
+        });
 
       return response.data;
     } catch (error) {
@@ -74,7 +84,10 @@ export class GithubClient {
     let deletedAll = true;
     try {
       const runners = await this.getRunnersWithLabels(labels);
-      console.log("Found existing runners:", runners.map(r => r.id));
+      console.log(
+        "Found existing runners:",
+        runners.map((r) => r.id)
+      );
       const octokit = github.getOctokit(this.config.githubToken);
       for (const runner of runners) {
         const response =
