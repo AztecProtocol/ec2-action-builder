@@ -34,6 +34,8 @@ export class GithubClient {
           owner: github.context.repo.owner,
           repo: github.context.repo.repo
         });
+
+        core.info(JSON.stringify(runners, null, 2));
         done = !Boolean(runners.data.total_count);
         const searchLabels = {
           labels: labels.map(function (label) {
@@ -113,10 +115,8 @@ export class GithubClient {
         for (const runner of await this.getRunnersWithLabels(labels)) {
           if (runner.status === "online") {
             core.info(
-              `GitHub self-hosted runner ${runner.name} with label ${labels} is created and ready to use.
-              Continuing assuming other runners will come online.`
+              `GitHub self-hosted runner ${runner.name} with label ${labels} is created and ready to use. Continuing assuming other runners will come online.`
             );
-            core.info("All runners are online and ready to use");
             clearInterval(interval);
             resolve(true);
             return;
