@@ -91,14 +91,15 @@ export class GithubClient {
         "Found existing runners:",
         runners.map((r) => r.name)
       );
-      const octokit = github.getOctokit(this.config.githubToken);
       for (const runner of runners) {
+        const octokit = github.getOctokit(this.config.githubToken);
         const response =
           await octokit.rest.actions.deleteSelfHostedRunnerFromRepo({
             owner: github.context.repo.owner,
             repo: github.context.repo.repo,
             runner_id: runner.id,
           });
+        console.log(JSON.stringify(response, null, 2));
         deletedAll = deletedAll && response.status == 204;
       }
     } catch (error) {
