@@ -39,12 +39,13 @@ export class UserData {
       "curl -O -L https://github.com/actions/runner/releases/download/v${GH_RUNNER_VERSION}/actions-runner-linux-${RUNNER_ARCH}-${GH_RUNNER_VERSION}.tar.gz",
       "tar xzf ./actions-runner-linux-${RUNNER_ARCH}-${GH_RUNNER_VERSION}.tar.gz",
       "export RUNNER_ALLOW_RUNASROOT=1",
-      'mv bin externals ..', // we share the big binaries between all the runner folders, symlink instead of copy them
+      'mv externals ..', // we share the big binaries between all the runner folders, symlink instead of copy them
+      // Note sharing bin doesn't work due to using it as a folder, and we don't bother splitting up sharing bin
       'rm ./actions-runner-linux-${RUNNER_ARCH}-${GH_RUNNER_VERSION}.tar.gz', // cleanup as we will copy our runner folder
       '[ -n "$(command -v yum)" ] && yum install libicu -y',
       `TOKENS=(${tokensSpaceSep}) ; echo ${tokensSpaceSep} > /run/github-runner-tokens`, // for debugging failed attempts
       `for i in {0..${this.config.githubActionRunnerConcurrency - 1}}; do`, 
-      `  ( cp -r . ../${runnerNameBase}-$i && ln -s $(pwd)/../bin $(pwd)/../externals ../${runnerNameBase}-$i && cd ../${runnerNameBase}-$i; ./config.sh --unattended --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token \${TOKENS[i]} --labels ${this.config.githubActionRunnerLabel} --replace --name ${runnerNameBase}-$i ; ./run.sh ) &`,
+      `  ( cp -r . ../${runnerNameBase}-$i && ln -s $(pwd)/../externals ../${runnerNameBase}-$i && cd ../${runnerNameBase}-$i; ./config.sh --unattended --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token \${TOKENS[i]} --labels ${this.config.githubActionRunnerLabel} --replace --name ${runnerNameBase}-$i ; ./run.sh ) &`,
       "done",
       "wait", // Wait for all background processes to finish
     ];
