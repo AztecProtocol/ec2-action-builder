@@ -26,6 +26,7 @@ export class UserData {
     // TODO could deregister runners right before shutdown starts
     const cmds = [
       "#!/bin/bash",
+      `exec 1>/run/log.out 2>&1`, // Log to /run/log.out
       `shutdown -P +${this.config.ec2InstanceTtl}`,
       "cd /run",
       `echo "shutdown -c ; shutdown -P +${this.config.ec2InstanceTtl}" > /run/delay_shutdown.sh`,
