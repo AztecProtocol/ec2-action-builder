@@ -72,8 +72,9 @@ export class GithubClient {
     let deletedAll = true;
     try {
       const runners = await this.getRunnersWithLabels(labels);
+      console.log("Found existing runners:", runners.map(r => r.id));
+      const octokit = github.getOctokit(this.config.githubToken);
       for (const runner of runners) {
-        const octokit = github.getOctokit(this.config.githubToken);
         const response =
           await octokit.rest.actions.deleteSelfHostedRunnerFromRepo({
             owner: github.context.repo.owner,
