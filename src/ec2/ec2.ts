@@ -287,7 +287,7 @@ export class Ec2Instance {
         {
           DeviceName: "/dev/sda1",
           Ebs: {
-            VolumeSize: 128, // TODO try and scale back
+            VolumeSize: 32
           },
         },
       ],
