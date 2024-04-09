@@ -118,7 +118,6 @@ export class Ec2Instance {
     const client = await this.getEc2Client();
 
     try {
-      core.info("Running instances with config:" + JSON.stringify(params, null, 2))
       return (await client.runInstances(params).promise()).Instances;
     } catch (error) {
       core.error(`Failed to create instance(s)`);
