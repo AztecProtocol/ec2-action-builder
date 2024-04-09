@@ -111,7 +111,7 @@ export class GithubClient {
   async pollForRunnerCreation(labels: string[]) {
     const timeoutMinutes = 5;
     const retryIntervalSeconds = 10;
-    const quietPeriodSeconds = 10;
+    const quietPeriodSeconds = 30;
     let waitSeconds = 0;
 
     core.info(`Waiting ${quietPeriodSeconds}s before polling for runners`);

@@ -271,7 +271,10 @@ export class Ec2Instance {
       MaxCount: 1,
       MinCount: 1,
       SecurityGroupIds: [this.config.ec2SecurityGroupId],
-      // SubnetId: this.config.ec2SubnetId, // <aztec>parity with build-system</aztec>
+      SubnetId: this.config.ec2SubnetId,
+      Placement: {
+        AvailabilityZone: await this.getSubnetAz(),
+      },
       TagSpecifications: [
         {
           ResourceType: "instance",
