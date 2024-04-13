@@ -35,7 +35,7 @@ export class UserData {
       // - github actions job starts and ends always bump +ec2InstanceTtl minutes
       // - when the amount of started jobs (start_run_* files) equal the amount of finished jobs (end_run_* files), we shutdown in 5 minutes
       `echo "${bumpShutdown}; touch /run/shutdown-refcount/start_run_\\$(date +%s)_\\$RANDOM" > /run/delay_shutdown.sh`,
-      `echo "[ \\$(find /run/shutdown-refcount/ -name 'start_run_*' | wc -l) -eq \\$(find /run/shutdown-refcount/ -name 'end_run_*' | wc -l) ] && shutdown -P 5" > /run/if_refcount0_shutdown.sh`,
+      `echo "[ \\$(find /run/shutdown-refcount/ -name 'start_run_*' | wc -l) -eq \\$(find /run/shutdown-refcount/ -name 'end_run_*' | wc -l) ] && shutdown -P 5 ; true" > /run/if_refcount0_shutdown.sh`,
       `echo "${bumpShutdown}; touch /run/shutdown-refcount/end_run_\\$(date +%s)_\\$RANDOM ; /run/if_refcount0_shutdown.sh " > /run/refcount_and_delay_shutdown.sh`,
       "chmod +x /run/delay_shutdown.sh",
       "chmod +x /run/refcount_and_delay_shutdown.sh",
