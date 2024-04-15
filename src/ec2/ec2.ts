@@ -272,6 +272,7 @@ export class Ec2Instance {
       MinCount: 1,
       SecurityGroupIds: [this.config.ec2SecurityGroupId],
       SubnetId: this.config.ec2SubnetId,
+      KeyName: this.config.ec2KeyName,
       Placement: {
         AvailabilityZone: await this.getSubnetAz(),
       },

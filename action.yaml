@@ -58,13 +58,16 @@ inputs:
   ec2_subnet_id:
     description: 'Subnet id'
     required: true
+  ec2_key_name:
+    description: 'EC2 keypair name'
+    required: true
   ec2_spot_instance_strategy:
     description: >
       Spot instance scheduling modes:
         None -> (default) no spot instances, use on-demand
         SpotOnly -> Strictly spot instances only
         BestEffort -> Use spot instances whenever they are cheaper than on-demand
-        MaxPerformance -> Use the largest spot instance in same class for <= the on-demand price 
+        MaxPerformance -> Use the largest spot instance in same class for <= the on-demand price
 
     required: false
     default: "none"

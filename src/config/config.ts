@@ -24,6 +24,7 @@ export interface ConfigInterface {
   ec2InstanceTtl: string;
   ec2SecurityGroupId: string;
   ec2SubnetId: string;
+  ec2KeyName: string;
   ec2SpotInstanceStrategy: string;
 }
 
@@ -50,6 +51,7 @@ export class ActionConfig implements ConfigInterface {
   ec2InstanceTtl: string;
   ec2SecurityGroupId: string;
   ec2SubnetId: string;
+  ec2KeyName: string;
   ec2SpotInstanceStrategy: string;
 
   constructor() {
@@ -79,6 +81,7 @@ export class ActionConfig implements ConfigInterface {
     this.ec2InstanceTags = core.getInput("ec2_instance_tags");
     this.ec2InstanceTtl = core.getInput("ec2_instance_ttl");
     this.ec2SubnetId = core.getInput("ec2_subnet_id");
+    this.ec2KeyName = core.getInput("ec2_key_name");
     this.ec2SecurityGroupId = core.getInput("ec2_security_group_id");
     this.ec2SpotInstanceStrategy = core
       .getInput("ec2_spot_instance_strategy")
