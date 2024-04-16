@@ -22,7 +22,8 @@ export class GithubClient {
 
     const body: string = await res.readBody();
     const obj = JSON.parse(body);
-    return obj["tag_name"].replace("v", "");
+    // aztec: workaround random flake in this api seem in ci
+    return (obj["tag_name"] || "v2.315.0").replace("v", "");
   }
 
   async getAllRunners() {
@@ -107,6 +108,18 @@ export class GithubClient {
     return deletedAll;
   }
 
+  async hasRunner(labels: string[]): Promise<boolean> {
+    for (const runner of await this.getRunnersWithLabels(labels)) {
+      if (runner.status === "online") {
+        core.info(
+          `GitHub self-hosted runner ${runner.name} with label ${labels} is ready to use. Continuing assuming other runners are online.`
+        );
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Borrowed from https://github.com/machulav/ec2-github-runner/blob/main/src/aws.js
   async pollForRunnerCreation(labels: string[]) {
     const timeoutMinutes = 5;
@@ -127,16 +140,9 @@ export class GithubClient {
             `A timeout of ${timeoutMinutes} minutes is exceeded. Please ensure your EC2 instance has access to the Internet.`
           );
         }
-
-        for (const runner of await this.getRunnersWithLabels(labels)) {
-          if (runner.status === "online") {
-            core.info(
-              `GitHub self-hosted runner ${runner.name} with label ${labels} is created and ready to use. Continuing assuming other runners will come online.`
-            );
-            clearInterval(interval);
-            resolve(true);
-            return;
-          }
+        if (await this.hasRunner(labels)) {
+          clearInterval(interval);
+          return;
         }
         waitSeconds += retryIntervalSeconds;
         core.info("Waiting for runners...");

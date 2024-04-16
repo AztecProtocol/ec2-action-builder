@@ -39,9 +39,9 @@ async function start() {
   }
 
   const instances = await ec2Client.getInstancesForTags();
-  if (instances.filter(i => i.State?.Name === "running").length > 0) {
+  if (ghClient.hasRunner[config.githubJobId]) {
     core.info(
-      `Runner already running. Continuing as we can target it with jobs.`
+      `Workers already running. Continuing as we can target it with jobs.`
     );
     return;
   }
