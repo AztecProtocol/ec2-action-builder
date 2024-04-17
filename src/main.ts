@@ -51,7 +51,9 @@ async function start() {
     core.info(
       `Runner already running. Continuing as we can target it with jobs.`
     );
-    await ghClient.pollForRunnerCreation([config.githubJobId]);
+    if (!ghClient.hasRunner([config.githubJobId])) {
+      await ghClient.pollForRunnerCreation([config.githubJobId]);
+    }
     return;
   }
   var instanceId = "";
