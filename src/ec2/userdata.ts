@@ -61,7 +61,7 @@ export class UserData {
       '[ -n "$(command -v yum)" ] && yum install libicu -y',
       `TOKENS=(${tokensSpaceSep}) ; echo ${tokensSpaceSep} > /run/github-runner-tokens`, // for debugging failed attempts
       `for i in {0..${this.config.githubActionRunnerConcurrency - 1}}; do`,
-      `  ( cp -r . ../${runnerNameBase}-$i && ln -s $(pwd)/../externals ../${runnerNameBase}-$i && echo \${TOKENS[i]} > .runner-token && cd ../${runnerNameBase}-$i; ./config.sh --unattended --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token \${TOKENS[i]} --labels ${this.config.githubActionRunnerLabel} --replace --name ${runnerNameBase}-$i ; ./run.sh ) &`,
+      `  ( cp -r . ../${runnerNameBase}-$i && ln -s $(pwd)/../externals ../${runnerNameBase}-$i && cd ../${runnerNameBase}-$i && echo \${TOKENS[i]} > .runner-token && ./config.sh --unattended --url https://github.com/${github.context.repo.owner}/${github.context.repo.repo} --token \${TOKENS[i]} --labels ${this.config.githubActionRunnerLabel} --replace --name ${runnerNameBase}-$i ; ./run.sh ) &`,
       "done",
       "wait", // Wait for all background processes to finish
     ];
