@@ -5,29 +5,24 @@ import { GithubClient } from "./github/github";
 import { assertIsError } from "./utils/utils";
 
 async function shouldEarlyExit(config: ActionConfig, ec2Client: Ec2Instance, ghClient: GithubClient): Promise<boolean> {
-  let canEarlyExit = false;
-  let iter = 0;
-  while (!canEarlyExit) {
+  for (let iter = 0; iter < 60 * 2; iter++) {
     const instances = await ec2Client.getInstancesForTags();
     const hasInstance =
       instances.filter((i) => i.State?.Name === "running").length > 0;
     if (!hasInstance) {
-      break; // Have to continue, no instance
+      // we need to start an instance
+      return false;
     }
     try {
-      if (!(await ghClient.hasRunner([config.githubJobId]))) {
-        await ghClient.pollForRunnerCreation([config.githubJobId]);
-        canEarlyExit = true;
-        break;
+      if (await ghClient.hasRunner([config.githubJobId])) {
+        // we have runners
+        return true;
       }
     } catch (err) { }
     await new Promise((r) => setTimeout(r, 1000));
-    iter++;
-    if (iter > 60 * 2) {
-      throw new Error("Looped for 2 minutes and could only find spot with no runners!")
-    }
   }
-  return canEarlyExit;
+  // we have a bad state for a while, error
+  throw new Error("Looped for 2 minutes and could only find spot with no runners!");
 }
 
 async function start() {
