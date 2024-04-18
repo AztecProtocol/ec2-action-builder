@@ -3,7 +3,32 @@ import { Ec2Instance } from "./ec2/ec2";
 import * as core from "@actions/core";
 import { GithubClient } from "./github/github";
 import { assertIsError } from "./utils/utils";
-import { assert } from "console";
+
+async function shouldEarlyExit(config: ActionConfig, ec2Client: Ec2Instance, ghClient: GithubClient): Promise<boolean> {
+  let canEarlyExit = false;
+  let iter = 0;
+  while (!canEarlyExit) {
+    const instances = await ec2Client.getInstancesForTags();
+    const hasInstance =
+      instances.filter((i) => i.State?.Name === "running").length > 0;
+    if (!hasInstance) {
+      break; // Have to continue, no instance
+    }
+    try {
+      if (!(await ghClient.hasRunner([config.githubJobId]))) {
+        await ghClient.pollForRunnerCreation([config.githubJobId]);
+        canEarlyExit = true;
+        break;
+      }
+    } catch (err) { }
+    await new Promise((r) => setTimeout(r, 1000));
+    iter++;
+    if (iter > 60 * 2) {
+      throw new Error("Looped for 2 minutes and could only find spot with no runners!")
+    }
+  }
+  return canEarlyExit;
+}
 
 async function start() {
   const config = new ActionConfig();
@@ -44,16 +69,11 @@ async function start() {
     }
   }
 
-  const instances = await ec2Client.getInstancesForTags();
-  const hasInstance =
-    instances.filter((i) => i.State?.Name === "running").length > 0;
-  if (hasInstance) {
+  const canEarlyExit = await shouldEarlyExit(config, ec2Client, ghClient);
+  if (canEarlyExit) {
     core.info(
       `Runner already running. Continuing as we can target it with jobs.`
     );
-    if (!await ghClient.hasRunner([config.githubJobId])) {
-      await ghClient.pollForRunnerCreation([config.githubJobId]);
-    }
     return;
   }
   var instanceId = "";
