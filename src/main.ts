@@ -14,6 +14,7 @@ async function shouldEarlyExit(config: ActionConfig, ec2Client: Ec2Instance, ghC
       return false;
     }
     try {
+      core.info("Found ec2 instance, looking for runners.")
       if (await ghClient.hasRunner([config.githubJobId])) {
         // we have runners
         return true;
