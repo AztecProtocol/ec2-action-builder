@@ -4,26 +4,29 @@ import * as core from "@actions/core";
 import { GithubClient } from "./github/github";
 import { assertIsError } from "./utils/utils";
 
-async function shouldEarlyExit(config: ActionConfig, ec2Client: Ec2Instance, ghClient: GithubClient): Promise<boolean> {
-  for (let iter = 0; iter < 60 * 2; iter++) {
+async function pollSpotStatus(config: ActionConfig, ec2Client: Ec2Instance, ghClient: GithubClient): Promise<'usable' | 'unusable' | 'none'> {
+  // 12 iters x 10000 ms = 2 minutes
+  for (let iter = 0; iter < 12; iter++) {
     const instances = await ec2Client.getInstancesForTags();
     const hasInstance =
       instances.filter((i) => i.State?.Name === "running").length > 0;
     if (!hasInstance) {
       // we need to start an instance
-      return false;
+      return 'none';
     }
     try {
       core.info("Found ec2 instance, looking for runners.")
       if (await ghClient.hasRunner([config.githubJobId])) {
         // we have runners
-        return true;
+        return 'usable';
       }
     } catch (err) { }
-    await new Promise((r) => setTimeout(r, 1000));
+    // wait 10 seconds
+    await new Promise((r) => setTimeout(r, 10000));
   }
   // we have a bad state for a while, error
-  throw new Error("Looped for 2 minutes and could only find spot with no runners!");
+  core.warning("Looped for 2 minutes and could only find spot with no runners!");
+  return 'unusable';
 }
 
 async function start() {
@@ -37,9 +40,27 @@ async function start() {
   } else if (config.subaction !== "start") {
     throw new Error("Unexpected subaction: " + config.subaction);
   }
-  // assume subaction is 'start'
+  // subaction is 'start' or 'restart'estart'
   const ec2Client = new Ec2Instance(config);
   const ghClient = new GithubClient(config);
+  const spotStatus = await pollSpotStatus(config, ec2Client, ghClient);
+  if (spotStatus === "usable") {
+    core.info(
+      `Runner already running. Continuing as we can target it with jobs.`
+    );
+    return;
+  }
+  if (spotStatus === "unusable") {
+    core.warning(
+      "Taking down spot as it has no runners! If we were mistaken, this could impact existing jobs."
+    );
+    if (config.subaction === "restart") {
+      throw new Error(
+        "Taking down spot we just started. This seems wrong, erroring out."
+      );
+    }
+    await stop();
+  }
 
   var ec2SpotStrategies: string[];
   switch (config.ec2SpotInstanceStrategy) {
@@ -65,38 +86,43 @@ async function start() {
     }
   }
 
-  const canEarlyExit = await shouldEarlyExit(config, ec2Client, ghClient);
-  if (canEarlyExit) {
-    core.info(
-      `Runner already running. Continuing as we can target it with jobs.`
-    );
-    return;
-  }
   var instanceId = "";
   for (const ec2Strategy of ec2SpotStrategies) {
     core.info(`Starting instance with ${ec2Strategy} strategy`);
-    // Get instance config
-    const instanceConfig = await ec2Client.getInstanceConfiguration(
-      ec2Strategy
-    );
-    try {
-      // Start instance
-      const response = await ec2Client.runInstances(instanceConfig);
-      if (response?.length && response.length > 0 && response[0].InstanceId) {
-        instanceId = response[0].InstanceId;
+    // 6 * 10000ms = 1 minute per strategy
+    // TODO make longer lived spot request?
+    for (let i = 0; i < 6 ; i++) {
+      // Get instance config
+      const instanceConfig = await ec2Client.getInstanceConfiguration(
+        ec2Strategy
+      );
+      try {
+        // Start instance
+        const response = await ec2Client.runInstances(instanceConfig);
+        if (response?.length && response.length > 0 && response[0].InstanceId) {
+          instanceId = response[0].InstanceId;
+        }
         break;
+      } catch (error) {
+        if (
+          error?.code &&
+          error.code === "InsufficientInstanceCapacity" &&
+          ec2SpotStrategies.length > 0 &&
+          ec2Strategy.toLocaleUpperCase() != "none"
+        ) {
+          core.info(
+            "Failed to create instance due to 'InsufficientInstanceCapacity', waiting 10 seconds and trying again."
+          );
+        } else { throw error; }
       }
-    } catch (error) {
-      if (
-        error?.code &&
-        error.code === "InsufficientInstanceCapacity" &&
-        ec2SpotStrategies.length > 0 &&
-        ec2Strategy.toLocaleUpperCase() != "none"
-      )
-        core.info(
-          "Failed to create instance due to 'InsufficientInstanceCapacity', trying fallback strategy next"
-        );
-      else throw error;
+      // wait 10 seconds
+      await new Promise((r) => setTimeout(r, 10000));
+    }
+    if (instanceId) {
+      core.info(
+        "Successfully requested instance with ID " + instanceId
+      );
+      break;
     }
   }
   if (instanceId) await ec2Client.waitForInstanceRunningStatus(instanceId);
