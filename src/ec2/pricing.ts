@@ -63,7 +63,6 @@ export class Ec2Pricing {
     }
   }
 
-
   async getPriceForInstanceTypeUSD(instanceType: string) {
     const client = await this.getEc2Client();
 

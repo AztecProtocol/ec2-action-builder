@@ -1,18 +1,14 @@
 import { ConfigInterface } from "../config/config";
 import * as _ from "lodash";
 import AWS from "aws-sdk";
+import * as crypto from "crypto";
 import * as core from "@actions/core";
 import { UserData } from "./userdata";
-import { Ec2Pricing } from "./pricing";
+import { CreateLaunchTemplateRequest, InstanceRequirementsRequest, RunInstancesRequest } from "aws-sdk/clients/ec2";
 
 interface Tag {
   Key: string;
   Value: string;
-}
-
-interface InstanceTypeInterface {
-  name: string;
-  vcpu: number;
 }
 
 interface FilterInterface {
@@ -114,7 +110,7 @@ export class Ec2Instance {
     }
   }
 
-  async runInstances(params) {
+  async runInstances(params: RunInstancesRequest) {
     const client = await this.getEc2Client();
 
     try {
@@ -142,132 +138,54 @@ export class Ec2Instance {
     }
   }
 
-  async getSpotInstancePrice(instanceType: string) {
+  getHashOfStringArray(strings: string[]): string {
+    const hash = crypto.createHash('sha256');
+    hash.update(strings.join('')); // Concatenate all strings in the array
+    return hash.digest('hex');
+  }
+
+  async getLaunchTemplate(): Promise<string> {
     const client = await this.getEc2Client();
-    const params = {
-      AvailabilityZone: await this.getSubnetAz(),
-      //EndTime: new Date || 'Wed Dec 31 1969 16:00:00 GMT-0800 (PST)' || 123456789,
-      InstanceTypes: [
-        instanceType ? instanceType : this.config.ec2InstanceType,
-      ],
-      ProductDescriptions: [
-        "Linux/UNIX",
-        // 'Red Hat Enterprise Linux'
-        // 'SUSE Linux'
-        // 'Windows'
-      ],
-      StartTime: new Date(),
-    };
 
-    try {
-      const spotPriceHistory = (
-        await client.describeSpotPriceHistory(params).promise()
-      ).SpotPriceHistory;
-
-      return Number(spotPriceHistory?.at(0)?.SpotPrice);
-    } catch (error) {
-      core.error(`Failed to lookup spot instance price`);
-      throw error;
-    }
-  }
-
-  async getInstanceSizesForType(
-    instanceClass: string,
-    includeBareMetal: boolean = false
-  ) {
-    const client = await this.getEc2Client();
-    var params = {
-      Filters: [
-        {
-          Name: "instance-type",
-          Values: [`${instanceClass}.*`],
-        },
-        {
-          Name: "bare-metal",
-          Values: [`${includeBareMetal}`],
-        },
-      ],
-      MaxResults: 99,
-    };
-
-    var instanceTypesList: InstanceTypeInterface[] = [];
-    var nextToken: string = "";
-    do {
-      const response = await client.describeInstanceTypes(params).promise();
-      response.InstanceTypes?.forEach(function (item) {
-        if (item.InstanceType && item.VCpuInfo?.DefaultCores)
-          instanceTypesList.push({
-            name: item.InstanceType,
-            vcpu: item.VCpuInfo?.DefaultCores,
-          });
-      });
-
-      nextToken = response.NextToken ? response.NextToken : "";
-      params = { ...params, ...{ NextToken: nextToken } };
-    } while (nextToken);
-
-    return _.orderBy(instanceTypesList, "vcpu");
-  }
-
-  async getNextLargerInstanceType(instanceType: string) {
-    const instanceClass = instanceType.toLowerCase().split(".")[0];
-    var instanceTypeList = await this.getInstanceSizesForType(instanceClass);
-    instanceTypeList = instanceTypeList.filter(function (item) {
-      return !item.name.includes("metal");
-    });
-
-    const currentInstanceTypeIndex = instanceTypeList
-      .map(function (e) {
-        return e.name;
-      })
-      .indexOf(instanceType);
-    const nextInstanceTypeIndex =
-      currentInstanceTypeIndex + 1 < instanceTypeList.length
-        ? currentInstanceTypeIndex + 1
-        : currentInstanceTypeIndex;
-    return instanceTypeList[nextInstanceTypeIndex].name;
-  }
-
-  async bestSpotSizeForOnDemandPrice(instanceType: string) {
-    const ec2Pricing = new Ec2Pricing(this.config);
-    const currentOnDemandPrice = await ec2Pricing.getPriceForInstanceTypeUSD(
+    const ec2InstanceTypeHash = this.getHashOfStringArray(
       this.config.ec2InstanceType
     );
+    const launchTemplateName =
+      "aztec-packages-spot-runner-" + ec2InstanceTypeHash;
 
-    var previousInstanceType = this.config.ec2InstanceType;
-    var bestInstanceType = this.config.ec2InstanceType;
-    do {
-      const nextLargerInstance = await this.getNextLargerInstanceType(
-        bestInstanceType
-      );
-      const spotPriceForLargerInstance = await this.getSpotInstancePrice(
-        nextLargerInstance
-      );
-
-      previousInstanceType = bestInstanceType;
-      if (
-        spotPriceForLargerInstance > 0 &&
-        currentOnDemandPrice > spotPriceForLargerInstance
-      ) {
-        bestInstanceType = nextLargerInstance;
-      }
-    } while (bestInstanceType != previousInstanceType);
-
-    return bestInstanceType;
+    const launchTemplateParams: CreateLaunchTemplateRequest = {
+      LaunchTemplateName: launchTemplateName,
+      LaunchTemplateData: {
+        InstanceRequirements: {
+          // We do not know what the instance types correspond to
+          // just let the user send a list of allowed instance types
+          VCpuCount: { Min: 0 },
+          MemoryMiB: { Min: 0 },
+          AllowedInstanceTypes: this.config.ec2InstanceType,
+        },
+      },
+    };
+    const arr = (await client
+      .describeLaunchTemplates({
+        LaunchTemplateNames: [launchTemplateName],
+      })
+      .promise()).LaunchTemplates || [];
+    if (
+      arr.length <= 0
+    ) {
+      await client.createLaunchTemplate(launchTemplateParams).promise();
+    }
+    return launchTemplateName;
   }
 
-  async getInstanceConfiguration(ec2SpotInstanceStrategy: string) {
-    const ec2Pricing = new Ec2Pricing(this.config);
-    const currentInstanceTypePrice =
-      await ec2Pricing.getPriceForInstanceTypeUSD(this.config.ec2InstanceType);
-
+  async getInstanceConfiguration(ec2SpotInstanceStrategy: string): Promise<RunInstancesRequest> {
     const userData = new UserData(this.config);
 
-    var params = {
+    const params: RunInstancesRequest = {
       ImageId: this.config.ec2AmiId,
       InstanceInitiatedShutdownBehavior: "terminate",
       InstanceMarketOptions: {},
-      InstanceType: this.config.ec2InstanceType,
+      LaunchTemplate: { LaunchTemplateName: await this.getLaunchTemplate() },
       MaxCount: 1,
       MinCount: 1,
       SecurityGroupIds: [this.config.ec2SecurityGroupId],
@@ -287,7 +205,7 @@ export class Ec2Instance {
         {
           DeviceName: "/dev/sda1",
           Ebs: {
-            VolumeSize: 32
+            VolumeSize: 32,
           },
         },
       ],
@@ -296,46 +214,12 @@ export class Ec2Instance {
     };
 
     switch (ec2SpotInstanceStrategy.toLowerCase()) {
+      case "besteffort":
       case "spotonly": {
         params.InstanceMarketOptions = {
           MarketType: "spot",
           SpotOptions: {
             InstanceInterruptionBehavior: "terminate",
-            MaxPrice: `${await this.getSpotInstancePrice(
-              this.config.ec2InstanceType
-            )}`,
-            SpotInstanceType: "one-time",
-          },
-        };
-        break;
-      }
-      case "besteffort": {
-        const spotInstanceTypePrice = await this.getSpotInstancePrice(
-          this.config.ec2InstanceType
-        );
-        if (
-          currentInstanceTypePrice &&
-          spotInstanceTypePrice < currentInstanceTypePrice
-        )
-          params.InstanceMarketOptions = {
-            MarketType: "spot",
-            SpotOptions: {
-              InstanceInterruptionBehavior: "terminate",
-              MaxPrice: `${currentInstanceTypePrice}`,
-              SpotInstanceType: "one-time",
-            },
-          };
-        break;
-      }
-      case "maxperformance": {
-        params.InstanceType = await this.bestSpotSizeForOnDemandPrice(
-          this.config.ec2InstanceType
-        );
-        params.InstanceMarketOptions = {
-          MarketType: "spot",
-          SpotOptions: {
-            InstanceInterruptionBehavior: "terminate",
-            MaxPrice: currentInstanceTypePrice.toString(),
             SpotInstanceType: "one-time",
           },
         };

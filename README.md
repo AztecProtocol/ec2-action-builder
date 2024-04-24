@@ -5,22 +5,20 @@ Jump to [examples](#example-usage)
 
 ## Overview
 
-This is a custom GitHub action to provision and manage self-hosted runners using AWS EC2 On-Demand and/or Spot instances. 
+This is a custom GitHub action to provision and manage self-hosted runners using AWS EC2 On-Demand and/or Spot instances.
 
-It offers multiple spot instance provisioning modes: 
+It offers multiple spot instance provisioning modes:
 
 - **None:** (default) Strictly On-Demand instances only
 - **SpotOnly**: Strictly Spot instances only
 - **BestEffort**: Use a Spot instance of same class and size when price is <= On-Demand
   - (Automatic fallback to On-Demand)
-- **MaxPerformance**: Use the largest spot instance in the same class for <= the On-Demand price
-  - (Automatic fallback to On-Demand)
 
 Supported operating system AMIs:
 - Amazon Linux
-- Ubuntu 
-- Debian 
-  
+- Ubuntu
+- Debian
+
 ## Why?
 
 ### Cost Savings
@@ -40,7 +38,7 @@ Sources:
 - [GH Action Runner Pricing](https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions#per-minute-rates)
 
 ### Customizable Machine Image
-Users can provide their own custom AMI image pre-loaded with all the necessary tooling of their choice saving time and cost. 
+Users can provide their own custom AMI image pre-loaded with all the necessary tooling of their choice saving time and cost.
 
 ### Enhance Security
 - EC2 instances run within your infrastructure
@@ -61,7 +59,7 @@ Users can provide their own custom AMI image pre-loaded with all the necessary t
 ### 2. Setup GitHub Secrets for IAM credentials
 
 1. Add your `IAM Access Key ID` and `Secret Access Key` to GitHub Secrets and note the secret names!
-2. Modify `${{ secrets.DEPLOY_AWS_ACCESS_KEY_ID }}` and `${{ secrets.DEPLOY_AWS_SECRET_ACCESS_KEY }}` in examples below to match the names of your GH secrets  
+2. Modify `${{ secrets.DEPLOY_AWS_ACCESS_KEY_ID }}` and `${{ secrets.DEPLOY_AWS_SECRET_ACCESS_KEY }}` in examples below to match the names of your GH secrets
 
 *Note*: For information about required IAM permissions check **IAM role policy** [here](./docs/CrossAccountIAM.md)
 
@@ -77,10 +75,10 @@ Users can provide their own custom AMI image pre-loaded with all the necessary t
 Note: The security group does not require any in-bound rules. You can add in-bound rules based on your needs (e.g open SSH port 22)
 
 <h2 id="example-usage">
-Examples 
+Examples
 </h2>
 
-### Standard 
+### Standard
 
 - Modify `ec2_spot_instance_strategy` for other deployment strategies. List of all values can be found [here](action.yaml)
 - Modify `github_token` value to match the name for your Personal Access Token secret name
@@ -89,11 +87,11 @@ Examples
 jobs:
     start-runner:
         timeout-minutes: 5              # normally it only takes 1-2 minutes
-        name: Start self-hosted EC2 runner   
+        name: Start self-hosted EC2 runner
         runs-on: ubuntu-latest
         permissions:
-          actions: write        
-        steps:      
+          actions: write
+        steps:
           - name: Start EC2 runner
             id: start-ec2-runner
             uses: NextChapterSoftware/ec2-action-builder@v1
@@ -107,15 +105,15 @@ jobs:
               ec2_subnet_id: "SUBNET_ID_REDACTED"
               ec2_security_group_id: "SECURITY_GROUP_ID_REDACTED"
               ec2_instance_ttl: 40                # Optional (default is 60 minutes)
-              ec2_spot_instance_strategy: None    # Other options are: SpotOnly, BestEffort, MaxPerformance 
+              ec2_spot_instance_strategy: None    # Other options are: SpotOnly, BestEffort
 
-    # Job that runs on the self-hosted runner 
+    # Job that runs on the self-hosted runner
     run-build:
         timeout-minutes: 1
         needs:
           - start-runner
-        runs-on: ${{ github.run_id }}          
-        steps:              
+        runs-on: ${{ github.run_id }}
+        steps:
           - run: env
 ```
 
@@ -129,11 +127,11 @@ jobs:
 jobs:
     start-runner:
         timeout-minutes: 5                  # normally it only takes 1-2 minutes
-        name: Start self-hosted EC2 runner   
+        name: Start self-hosted EC2 runner
         runs-on: ubuntu-latest
         permissions:
-          actions: write        
-        steps:      
+          actions: write
+        steps:
           - name: Start EC2 runner
             id: start-ec2-runner
             uses: NextChapterSoftware/ec2-action-builder@v1
@@ -149,19 +147,19 @@ jobs:
               ec2_subnet_id: "SUBNET_ID_REDACTED"
               ec2_security_group_id: "SECURITY_GROUP_ID_REDACTED"
               ec2_instance_ttl: 40                          # Optional (default is 60 minutes)
-              ec2_spot_instance_strategy: MaxPerformance    # Other options are: None, BestEffort, MaxPerformance 
+              ec2_spot_instance_strategy: BestEffort    # Other options are: None, BestEffort
               ec2_instance_tags: >                          # Required for IAM role resource permission scoping
                 [
                   {"Key": "Owner", "Value": "deploybot"}
                 ]
 
-    # Job that runs on the self-hosted runner 
+    # Job that runs on the self-hosted runner
     run-build:
         timeout-minutes: 1
         needs:
           - start-runner
-        runs-on: ${{ github.run_id }}          
-        steps:              
+        runs-on: ${{ github.run_id }}
+        steps:
           - run: env
 ```
 ## How it all works under the hood
@@ -170,10 +168,10 @@ jobs:
 - Your GitHub personal token is used to obtain a Runner Registration token
 - If no explicit runner version has been provided, it will retrieve the latest version number
 - It then uses all the provided info to compile an EC2 user-data script which does the following:
-  - Set a max TTL on the EC2 instance on startup 
+  - Set a max TTL on the EC2 instance on startup
   - Create a shutdown script which is executed when jobs end
   - Downloads GitHub Action Runner bundle
-  - Unpack Action Runner bundle 
+  - Unpack Action Runner bundle
   - Configure Runner agent as an **ephemeral** agent
 - EC2 instance is launched with the user-data script from previous step
 - Once EC2 boot has completed, user-data script is executed
@@ -187,10 +185,9 @@ jobs:
 - Depending on the mode
   - SpotOnly: It will try to launch a spot instance with On-Demand price as the max price cut-off
   - BestEffort: It will try to launch a spot instance but falls back to On-Demand if prices are too high!
-  - MaxPerformance: It will try to get the largest spot instance in class for the On-Demand price of the supplied instance type. It falls back to On-Demand if prices are too high!
 
 ## Other EC2 Considerations
 - Each instance is named as "{repo}-{jobID}"
-- Default EC2 TTL is 60 minutes 
+- Default EC2 TTL is 60 minutes
 - Other EC2 tags are `github_job_id` and `github_ref`
 - Spot instances might be taken away by AWS without any prior notice

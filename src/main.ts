@@ -64,13 +64,6 @@ async function start() {
 
   var ec2SpotStrategies: string[];
   switch (config.ec2SpotInstanceStrategy) {
-    case "maxperformance": {
-      ec2SpotStrategies = ["MaxPerformance", "SpotOnly"];
-      core.info(
-        "Ec2 spot instance strategy is set to 'MaxPerformance' with 'SpotOnly' and 'None' as fallback"
-      );
-      break;
-    }
     case "besteffort": {
       ec2SpotStrategies = ["BestEffort", "none"];
       core.info(
@@ -102,6 +95,7 @@ async function start() {
         if (response?.length && response.length > 0 && response[0].InstanceId) {
           instanceId = response[0].InstanceId;
         }
+        // let's exit, only loop on InsufficientInstanceCapacity
         break;
       } catch (error) {
         if (
@@ -113,6 +107,7 @@ async function start() {
           core.info(
             "Failed to create instance due to 'InsufficientInstanceCapacity', waiting 10 seconds and trying again."
           );
+          // we loop after 10 seconds
         } else { throw error; }
       }
       // wait 10 seconds

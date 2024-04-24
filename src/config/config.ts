@@ -17,7 +17,7 @@ export interface ConfigInterface {
   githubActionRunnerLabel: string;
   subaction: string;
 
-  ec2InstanceType: string;
+  ec2InstanceType: string[];
   ec2AmiId: string;
   ec2InstanceIamRole: string;
   ec2InstanceTags: string;
@@ -44,7 +44,7 @@ export class ActionConfig implements ConfigInterface {
   githubActionRunnerConcurrency: number;
   subaction: string;
 
-  ec2InstanceType: string;
+  ec2InstanceType: string[];
   ec2AmiId: string;
   ec2InstanceIamRole: string;
   ec2InstanceTags: string;
@@ -75,7 +75,7 @@ export class ActionConfig implements ConfigInterface {
     this.githubActionRunnerConcurrency = +core.getInput("runner_concurrency");
 
     // Ec2 params
-    this.ec2InstanceType = core.getInput("ec2_instance_type");
+    this.ec2InstanceType = core.getInput("ec2_instance_type").split(" ");
     this.ec2AmiId = core.getInput("ec2_ami_id");
     this.ec2InstanceIamRole = core.getInput("ec2_instance_iam_role");
     this.ec2InstanceTags = core.getInput("ec2_instance_tags");
